@@ -10,10 +10,18 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
+function getServiceAccountCredentials() {
+  const encoded = process.env.GOOGLE_SERVICE_ACCOUNT_KEY_BASE64;
+  const json = Buffer.from(encoded, "base64").toString("utf-8");
+  return JSON.parse(json);
+}
+
 async function appendToSheet(userText, replyText) {
+  const { client_email, private_key } = getServiceAccountCredentials();
+
   const auth = new google.auth.JWT({
-    email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-    key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+    email: client_email,
+    key: private_key,
     scopes: ["https://www.googleapis.com/auth/spreadsheets"],
   });
 
