@@ -52,6 +52,11 @@ async function generateReply(userText) {
   return textBlock?.text ?? "担当者にご確認のうえご連絡します。";
 }
 
+function buildQuoteReply() {
+  const quoteUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/quote`;
+  return `お見積もりはこちらのフォームからご依頼いただけます\n${quoteUrl}`;
+}
+
 export async function POST(request) {
   const body = await request.text();
   const signature = request.headers.get("x-line-signature");
@@ -69,7 +74,9 @@ export async function POST(request) {
     events.map(async (event) => {
       if (event.type === "message" && event.message.type === "text") {
         const userText = event.message.text;
-        const replyText = await generateReply(userText);
+        const replyText = userText.includes("見積")
+          ? buildQuoteReply()
+          : await generateReply(userText);
 
         appendToSheet(userText, replyText).catch((error) => {
           console.error("Failed to append to Google Sheet:", error);
