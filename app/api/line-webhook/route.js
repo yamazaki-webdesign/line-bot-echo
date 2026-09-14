@@ -1,8 +1,28 @@
 import { validateSignature, messagingApi } from "@line/bot-sdk";
+import Anthropic from "@anthropic-ai/sdk";
 
 const client = new messagingApi.MessagingApiClient({
   channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
 });
+
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY,
+});
+
+const SYSTEM_PROMPT =
+  "あなたは『サンプルリフォーム』という会社のカスタマー対応AIです。営業時間は9:00〜18:00、定休日は水曜日、対応エリアは神奈川県全域、外壁塗装や水回りリフォームの相談を受け付けています。この情報をもとに丁寧に回答し、分からないことは正直に『担当者にご確認のうえご連絡します』と答えてください。";
+
+async function generateReply(userText) {
+  const response = await anthropic.messages.create({
+    model: "claude-haiku-4-5",
+    max_tokens: 1024,
+    system: SYSTEM_PROMPT,
+    messages: [{ role: "user", content: userText }],
+  });
+
+  const textBlock = response.content.find((block) => block.type === "text");
+  return textBlock?.text ?? "担当者にご確認のうえご連絡します。";
+}
 
 export async function POST(request) {
   const body = await request.text();
@@ -18,11 +38,12 @@ export async function POST(request) {
   const { events } = JSON.parse(body);
 
   await Promise.all(
-    events.map((event) => {
+    events.map(async (event) => {
       if (event.type === "message" && event.message.type === "text") {
+        const replyText = await generateReply(event.message.text);
         return client.replyMessage({
           replyToken: event.replyToken,
-          messages: [{ type: "text", text: event.message.text }],
+          messages: [{ type: "text", text: replyText }],
         });
       }
       return Promise.resolve();
